@@ -99,6 +99,22 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         }
 
         /// <summary>
+        /// Adds the source file to the diagnostic and updates the diagnostic range using the file offset, if one is
+        /// given.
+        /// </summary>
+        /// <param name="diagnostic">The diagnostic.</param>
+        /// <param name="fileName">The source file name.</param>
+        /// <param name="offset">The offset in the file to add to the diagnostic range.</param>
+        /// <returns>The diagnostic with a source file and updated range.</returns>
+        internal static QsCompilerDiagnostic WithSourceFile(
+                this QsCompilerDiagnostic diagnostic, string fileName, Position offset = null) =>
+            new QsCompilerDiagnostic(
+                diagnostic.Diagnostic,
+                diagnostic.Arguments,
+                (offset ?? Position.Zero) + diagnostic.Range,
+                QsNullable<string>.NewValue(fileName));
+
+        /// <summary>
         /// Converts the Q# compiler diagnostic into a language server protocol diagnostic.
         /// </summary>
         internal static Diagnostic ToLsp(this QsCompilerDiagnostic diagnostic) => new Diagnostic

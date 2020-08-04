@@ -197,7 +197,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             IEnumerable<(TItem, HeaderEntry<THeader>)> itemsToAdd,
             Func<Position, Tuple<NonNullable<string>, Range>, THeader, ImmutableArray<AttributeAnnotation>, ImmutableArray<string>, QsCompilerDiagnostic[]> add,
             string fileName,
-            List<Diagnostic> diagnostics)
+            List<QsCompilerDiagnostic> diagnostics)
         {
             if (itemsToAdd == null)
             {
@@ -220,7 +220,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                 {
                     itemsToCompile.Add((tIndex, headerItem));
                 }
-                diagnostics.AddRange(messages.Select(msg => Diagnostics.Generate(fileName, msg, headerItem.Position)));
+                diagnostics.AddRange(messages.Select(msg => msg.WithSourceFile(fileName, headerItem.Position)));
             }
             return itemsToCompile;
         }
@@ -238,7 +238,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// Throws an InvalidOperationException if the lock for the given compilation cannot be set because a dependent lock is the gating lock ("outermost lock").
         /// </summary>
         internal static ImmutableDictionary<QsQualifiedName, (QsComments, IEnumerable<CodeFragment.TokenIndex>)> UpdateGlobalSymbols(
-            this FileContentManager file, CompilationUnit compilation, List<Diagnostic> diagnostics)
+            this FileContentManager file, CompilationUnit compilation, List<QsCompilerDiagnostic> diagnostics)
         {
             if (file == null)
             {
@@ -334,7 +334,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             FileContentManager file,
             Namespace ns,
             (CodeFragment.TokenIndex, HeaderEntry<Tuple<QsCallableKind, Modifiers, CallableSignature>>) parent,
-            List<Diagnostic> diagnostics)
+            List<QsCompilerDiagnostic> diagnostics)
         {
             if (ns == null)
             {
@@ -364,7 +364,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                 }
                 foreach (var msg in messages)
                 {
-                    diagnostics.Add(Diagnostics.Generate(file.FileName.Value, msg, position));
+                    diagnostics.Add(msg.WithSourceFile(file.FileName.Value, position));
                 }
             }
 
@@ -377,7 +377,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                 {
                     var msgRange = Parsing.HeaderDelimiters(1).Invoke(statement.Text);
                     var msg = QsCompilerDiagnostic.Error(ErrorCode.NotWithinSpecialization, Enumerable.Empty<string>(), msgRange);
-                    diagnostics.Add(Diagnostics.Generate(file.FileName.Value, msg, statement.Range.Start));
+                    diagnostics.Add(msg.WithSourceFile(file.FileName.Value, statement.Range.Start));
                 }
             }
 
@@ -411,7 +411,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// If the given fileName is not null, adds only the diagnostics for the file with that name to the given list of diagnostics.
         /// Throws an ArgumentNullException if the given NamespaceManager or list of diagnostics is null.
         /// </summary>
-        internal static void ResolveGlobalSymbols(NamespaceManager symbols, List<Diagnostic> diagnostics, string fileName = null)
+        internal static void ResolveGlobalSymbols(NamespaceManager symbols, List<QsCompilerDiagnostic> diagnostics, string fileName = null)
         {
             if (symbols == null)
             {
@@ -426,7 +426,8 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             var cycleDiagnostics = SyntaxProcessing.SyntaxTree.CheckDefinedTypesForCycles(symbols.DefinedTypes());
 
             void AddDiagnostics(NonNullable<string> source, IEnumerable<Tuple<Position, QsCompilerDiagnostic>> msgs) =>
-                diagnostics.AddRange(msgs.Select(msg => Diagnostics.Generate(source.Value, msg.Item2, msg.Item1)));
+                // TODO: Add the position earlier (in CheckDefinedTypesForCycles).
+                diagnostics.AddRange(msgs.Select(msg => msg.Item2.WithSourceFile(source.Value, msg.Item1)));
 
             if (fileName != null)
             {
@@ -459,7 +460,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// Throws an ArgumentNullException if the given compilation unit, the given file or the given diagnostics are null.
         /// Throws an InvalidOperationException if the lock for the given compilation cannot be set because a dependent lock is the gating lock ("outermost lock").
         /// </summary>
-        internal static void ImportGlobalSymbols(this FileContentManager file, CompilationUnit compilation, List<Diagnostic> diagnostics)
+        internal static void ImportGlobalSymbols(this FileContentManager file, CompilationUnit compilation, List<QsCompilerDiagnostic> diagnostics)
         {
             if (file == null)
             {
@@ -566,7 +567,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             try
             {
                 // get the fragment trees for the declaration content of all files and callables
-                var diagnostics = new List<Diagnostic>();
+                var diagnostics = new List<QsCompilerDiagnostic>();
                 var content = files.SelectMany(file =>
                     file.GetDeclarationTrees(file.UpdateGlobalSymbols(compilation, diagnostics)))
                     .ToImmutableDictionary(pair => pair.Key, pair => pair.Value);
@@ -581,7 +582,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                 ResolveGlobalSymbols(compilation.GlobalSymbols, diagnostics);
 
                 // replace the header diagnostics in each file, and publish them
-                var messages = diagnostics.ToLookup(d => d.Source);
+                var messages = diagnostics.ToLookup(d => d.Source.ValueOr(null));
                 foreach (var file in files)
                 {
                     file.ReplaceHeaderDiagnostics(messages[file.FileName.Value]);
@@ -613,7 +614,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         private static QsScope BuildScope(
             IReadOnlyList<FragmentTree.TreeNode> nodeContent,
             ScopeContext context,
-            List<Diagnostic> diagnostics,
+            List<QsCompilerDiagnostic> diagnostics,
             ImmutableHashSet<QsFunctor> requiredFunctorSupport = null)
         {
             if (nodeContent == null)
@@ -648,7 +649,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             FragmentTree.TreeNode node,
             Func<QsLocation, ScopeContext, Tuple<T, QsCompilerDiagnostic[]>> build,
             ScopeContext context,
-            List<Diagnostic> diagnostics)
+            List<QsCompilerDiagnostic> diagnostics)
         {
             if (build == null)
             {
@@ -666,7 +667,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             var statementPos = node.Fragment.Range.Start;
             var location = new QsLocation(node.RelativePosition, node.Fragment.HeaderRange);
             var (statement, messages) = build(location, context);
-            diagnostics.AddRange(messages.Select(msg => Diagnostics.Generate(context.Symbols.SourceFile.Value, msg, statementPos)));
+            diagnostics.AddRange(messages.Select(msg => msg.WithSourceFile(context.Symbols.SourceFile.Value, statementPos)));
             return statement;
         }
 
@@ -687,7 +688,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         private static bool TryBuildUsingStatement(
             IEnumerator<FragmentTree.TreeNode> nodes,
             ScopeContext context,
-            List<Diagnostic> diagnostics,
+            List<QsCompilerDiagnostic> diagnostics,
             out bool proceed,
             out QsStatement statement)
         {
@@ -743,7 +744,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         private static bool TryBuildBorrowStatement(
             IEnumerator<FragmentTree.TreeNode> nodes,
             ScopeContext context,
-            List<Diagnostic> diagnostics,
+            List<QsCompilerDiagnostic> diagnostics,
             out bool proceed,
             out QsStatement statement)
         {
@@ -800,7 +801,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         private static bool TryBuildRepeatStatement(
             IEnumerator<FragmentTree.TreeNode> nodes,
             ScopeContext context,
-            List<Diagnostic> diagnostics,
+            List<QsCompilerDiagnostic> diagnostics,
             out bool proceed,
             out QsStatement statement)
         {
@@ -880,7 +881,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         private static bool TryBuildForStatement(
             IEnumerator<FragmentTree.TreeNode> nodes,
             ScopeContext context,
-            List<Diagnostic> diagnostics,
+            List<QsCompilerDiagnostic> diagnostics,
             out bool proceed,
             out QsStatement statement)
         {
@@ -936,7 +937,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         private static bool TryBuildWhileStatement(
             IEnumerator<FragmentTree.TreeNode> nodes,
             ScopeContext context,
-            List<Diagnostic> diagnostics,
+            List<QsCompilerDiagnostic> diagnostics,
             out bool proceed,
             out QsStatement statement)
         {
@@ -992,7 +993,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         private static bool TryBuildIfStatement(
             IEnumerator<FragmentTree.TreeNode> nodes,
             ScopeContext context,
-            List<Diagnostic> diagnostics,
+            List<QsCompilerDiagnostic> diagnostics,
             out bool proceed,
             out QsStatement statement)
         {
@@ -1056,8 +1057,8 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                 diagnostics.AddRange(ifDiagnostics.Select(item =>
                 {
                     var (relativeOffset, diagnostic) = item;
-                    return Diagnostics.Generate(
-                        context.Symbols.SourceFile.Value, diagnostic, rootPosition + relativeOffset);
+                    // TODO: Add the relative offset earlier (in NewIfStatement).
+                    return diagnostic.WithSourceFile(context.Symbols.SourceFile.Value, rootPosition + relativeOffset);
                 }));
                 return true;
             }
@@ -1082,7 +1083,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         private static bool TryBuildConjugationStatement(
             IEnumerator<FragmentTree.TreeNode> nodes,
             ScopeContext context,
-            List<Diagnostic> diagnostics,
+            List<QsCompilerDiagnostic> diagnostics,
             out bool proceed,
             out QsStatement statement)
         {
@@ -1122,8 +1123,9 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                     diagnostics.AddRange(built.Item2.Select(item =>
                     {
                         var (relativeOffset, diagnostic) = item;
-                        return Diagnostics.Generate(
-                            context.Symbols.SourceFile.Value, diagnostic, nodes.Current.RootPosition + relativeOffset);
+                        // TODO: Add the relative offset earlier (in NewConjugation).
+                        return diagnostic.WithSourceFile(
+                            context.Symbols.SourceFile.Value, nodes.Current.RootPosition + relativeOffset);
                     }));
 
                     statement = built.Item1;
@@ -1156,7 +1158,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         private static bool TryBuildLetStatement(
             IEnumerator<FragmentTree.TreeNode> nodes,
             ScopeContext context,
-            List<Diagnostic> diagnostics,
+            List<QsCompilerDiagnostic> diagnostics,
             out bool proceed,
             out QsStatement statement)
         {
@@ -1208,7 +1210,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         private static bool TryBuildMutableStatement(
             IEnumerator<FragmentTree.TreeNode> nodes,
             ScopeContext context,
-            List<Diagnostic> diagnostics,
+            List<QsCompilerDiagnostic> diagnostics,
             out bool proceed,
             out QsStatement statement)
         {
@@ -1260,7 +1262,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         private static bool TryBuildSetStatement(
             IEnumerator<FragmentTree.TreeNode> nodes,
             ScopeContext context,
-            List<Diagnostic> diagnostics,
+            List<QsCompilerDiagnostic> diagnostics,
             out bool proceed,
             out QsStatement statement)
         {
@@ -1312,7 +1314,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         private static bool TryBuildFailStatement(
             IEnumerator<FragmentTree.TreeNode> nodes,
             ScopeContext context,
-            List<Diagnostic> diagnostics,
+            List<QsCompilerDiagnostic> diagnostics,
             out bool proceed,
             out QsStatement statement)
         {
@@ -1364,7 +1366,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         private static bool TryBuildReturnStatement(
             IEnumerator<FragmentTree.TreeNode> nodes,
             ScopeContext context,
-            List<Diagnostic> diagnostics,
+            List<QsCompilerDiagnostic> diagnostics,
             out bool proceed,
             out QsStatement statement)
         {
@@ -1416,7 +1418,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         private static bool TryBuildExpressionStatement(
             IEnumerator<FragmentTree.TreeNode> nodes,
             ScopeContext context,
-            List<Diagnostic> diagnostics,
+            List<QsCompilerDiagnostic> diagnostics,
             out bool proceed,
             out QsStatement statement)
         {
@@ -1461,7 +1463,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// or if any of the fragments contained in the given nodes is null.
         /// </summary>
         private static ImmutableArray<QsStatement> BuildStatements(
-            IEnumerator<FragmentTree.TreeNode> nodes, ScopeContext context, List<Diagnostic> diagnostics)
+            IEnumerator<FragmentTree.TreeNode> nodes, ScopeContext context, List<QsCompilerDiagnostic> diagnostics)
         {
             if (nodes == null)
             {
@@ -1568,7 +1570,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             QsTuple<LocalVariableDeclaration<QsLocalSymbol>> argTuple,
             ImmutableHashSet<QsFunctor> requiredFunctorSupport,
             ScopeContext context,
-            List<Diagnostic> diagnostics)
+            List<QsCompilerDiagnostic> diagnostics)
         {
             if (argTuple == null)
             {
@@ -1603,7 +1605,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             {
                 var msgs = context.Symbols.TryAddVariableDeclartion(decl).Item2;
                 var position = specPos + decl.Position.Item;
-                diagnostics.AddRange(msgs.Select(msg => Diagnostics.Generate(sourceFile.Value, msg, position)));
+                diagnostics.AddRange(msgs.Select(msg => msg.WithSourceFile(sourceFile.Value, position)));
             }
 
             var implementation = BuildScope(root.Children, context, diagnostics);
@@ -1613,12 +1615,13 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             var (allPathsReturn, messages) = SyntaxProcessing.SyntaxTree.AllPathsReturnValueOrFail(implementation);
             var rootPosition = root.Fragment.Range.Start;
             diagnostics.AddRange(messages.Select(msg =>
-                Diagnostics.Generate(sourceFile.Value, msg.Item2, rootPosition + msg.Item1)));
+                // TODO: Add the positions earlier (in AllPathsReturnValueOrFail).
+                msg.Item2.WithSourceFile(sourceFile.Value, rootPosition + msg.Item1)));
             if (!(context.ReturnType.Resolution.IsUnitType || context.ReturnType.Resolution.IsInvalidType) && !allPathsReturn)
             {
                 var errRange = Parsing.HeaderDelimiters(root.Fragment.Kind.IsControlledAdjointDeclaration ? 2 : 1).Invoke(root.Fragment.Text);
                 var missingReturn = QsCompilerDiagnostic.Error(ErrorCode.MissingReturnOrFailStatement, Enumerable.Empty<string>(), errRange);
-                diagnostics.Add(Diagnostics.Generate(sourceFile.Value, missingReturn, specPos));
+                diagnostics.Add(missingReturn.WithSourceFile(sourceFile.Value, specPos));
             }
             return SpecializationImplementation.NewProvided(argTuple, implementation);
         }
@@ -1711,7 +1714,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             ResolvedSignature parentSignature,
             QsTuple<LocalVariableDeclaration<QsLocalSymbol>> argTuple,
             CompilationUnit compilation,
-            List<Diagnostic> diagnostics,
+            List<QsCompilerDiagnostic> diagnostics,
             CancellationToken cancellationToken)
         {
             if (parentSignature == null)
@@ -1779,7 +1782,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                     var (arg, messages) = buildArg(userDefined.Item);
                     foreach (var msg in messages)
                     {
-                        diagnostics.Add(Diagnostics.Generate(spec.SourceFile.Value, msg, specPos));
+                        diagnostics.Add(msg.WithSourceFile(spec.SourceFile.Value, specPos));
                     }
 
                     QsGeneratorDirective GetDirective(QsSpecializationKind k) => definedSpecs.TryGetValue(k, out defined) && defined.Item1.IsValue ? defined.Item1.Item : null;
@@ -1916,7 +1919,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// Returns a list with all accumulated diagnostics. If the request has been cancelled, returns null.
         /// Throws an ArgumentNullException if any of the arguments is null.
         /// </summary>
-        internal static List<Diagnostic> RunTypeChecking(
+        internal static List<QsCompilerDiagnostic> RunTypeChecking(
             CompilationUnit compilation,
             ImmutableDictionary<QsQualifiedName, (QsComments, FragmentTree)> roots,
             CancellationToken cancellationToken)
@@ -1934,7 +1937,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                 throw new ArgumentNullException(nameof(cancellationToken));
             }
 
-            var diagnostics = new List<Diagnostic>();
+            var diagnostics = new List<QsCompilerDiagnostic>();
             compilation.EnterUpgradeableReadLock();
             try
             {
@@ -1986,7 +1989,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                         var offset = info.Position is DeclarationHeader.Offset.Defined pos ? pos.Item : null;
                         QsCompilerError.Verify(offset != null, "missing position information for built callable");
                         var msgs = symbolTracker.TryAddVariableDeclartion(decl).Item2
-                            .Select(msg => Diagnostics.Generate(info.SourceFile.Value, msg, offset));
+                            .Select(msg => msg.WithSourceFile(info.SourceFile.Value, offset));
                         diagnostics.AddRange(msgs);
                     }
                     symbolTracker.EndScope();
@@ -2192,7 +2195,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             file.SyncRoot.EnterUpgradeableReadLock();
             try
             {
-                var diagnostics = new List<Diagnostic>();
+                var diagnostics = new List<QsCompilerDiagnostic>();
                 var editedCallables = file.DequeueContentEditedCallables();
                 // note: we can't return here because even if no callables have been marked as edited, other things like types an open directives may have been...
 
