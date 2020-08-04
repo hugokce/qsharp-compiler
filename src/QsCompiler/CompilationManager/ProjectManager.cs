@@ -152,10 +152,10 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             public void Dispose() =>
                 this.processing.QueueForExecutionAsync(() => this.Manager.Dispose());
 
-            private ImmutableArray<Diagnostic> generalDiagnostics;
-            private ImmutableArray<Diagnostic> sourceFileDiagnostics;
-            private ImmutableArray<Diagnostic> referenceDiagnostics;
-            private ImmutableArray<Diagnostic> projectReferenceDiagnostics;
+            private ImmutableArray<QsCompilerDiagnostic> generalDiagnostics;
+            private ImmutableArray<QsCompilerDiagnostic> sourceFileDiagnostics;
+            private ImmutableArray<QsCompilerDiagnostic> referenceDiagnostics;
+            private ImmutableArray<QsCompilerDiagnostic> projectReferenceDiagnostics;
 
             /// <summary>
             /// Initializes the project for the given project file with the given project information.
@@ -226,7 +226,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
 
                 this.generalDiagnostics = this.OutputPath == null
                     ? ImmutableArray.Create(Errors.LoadError(ErrorCode.InvalidProjectOutputPath, new[] { this.ProjectFile.LocalPath }, MessageSource(this.ProjectFile)))
-                    : ImmutableArray<Diagnostic>.Empty;
+                    : ImmutableArray<QsCompilerDiagnostic>.Empty;
 
                 this.specifiedSourceFiles = projectInfo.SourceFiles
                     .Select(f => Uri.TryCreate(f, UriKind.Absolute, out uri) ? uri : null)
@@ -318,7 +318,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             /// Throws an ArgumentNullException if the given diagnostics are null, or
             /// if the given dictionary mapping each project files to the corresponding output path of the built project dll is.
             /// </summary>
-            private static Func<Uri, Uri> GetProjectOutputPath(IDictionary<Uri, Uri> projectOutputPaths, List<Diagnostic> diagnostics) => (projFile) =>
+            private static Func<Uri, Uri> GetProjectOutputPath(IDictionary<Uri, Uri> projectOutputPaths, List<QsCompilerDiagnostic> diagnostics) => (projFile) =>
             {
                 if (projectOutputPaths == null)
                 {
@@ -358,7 +358,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                     throw new ArgumentNullException(nameof(projectReferences));
                 }
 
-                var diagnostics = new List<Diagnostic>();
+                var diagnostics = new List<QsCompilerDiagnostic>();
                 var loadedHeaders = LoadProjectReferences(
                     projectReferences,
                     GetProjectOutputPath(projectOutputPaths, diagnostics),
@@ -398,7 +398,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                     return;
                 }
 
-                var diagnostics = new List<Diagnostic>();
+                var diagnostics = new List<QsCompilerDiagnostic>();
                 var loadedHeaders = LoadProjectReferences(
                     new string[] { projectReference.LocalPath },
                     GetProjectOutputPath(projectOutputPaths, diagnostics),
@@ -416,7 +416,8 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                     (code, args) => diagnostics.Add(Errors.LoadError(code, args, MessageSource(this.ProjectFile))));
 
                 this.projectReferenceDiagnostics = this.projectReferenceDiagnostics.RemoveAll(d =>
-                        (d.Source == MessageSource(projectReference) && d.Code != WarningCode.DuplicateProjectReference.Code())
+                        (d.Source.ValueOr(null) == MessageSource(projectReference)
+                         && d.Code != (int)WarningCode.DuplicateProjectReference)
                         || DiagnosticTools.ErrorType(ErrorCode.ConflictInReferences)(d))
                     .Concat(diagnostics).ToImmutableArray();
                 this.Manager.PublishDiagnostics(this.CurrentLoadDiagnostics());
@@ -437,7 +438,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                     throw new ArgumentNullException(nameof(references));
                 }
 
-                var diagnostics = new List<Diagnostic>();
+                var diagnostics = new List<QsCompilerDiagnostic>();
                 var loadedHeaders = LoadReferencedAssemblies(
                     references,
                     diagnostics.Add,
@@ -469,7 +470,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                     return;
                 }
 
-                var diagnostics = new List<Diagnostic>();
+                var diagnostics = new List<QsCompilerDiagnostic>();
                 var loadedHeaders = LoadReferencedAssemblies(
                     new string[] { reference.LocalPath },
                     diagnostics.Add,
@@ -486,7 +487,8 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                     (code, args) => diagnostics.Add(Errors.LoadError(code, args, MessageSource(this.ProjectFile))));
 
                 this.referenceDiagnostics = this.referenceDiagnostics.RemoveAll(d =>
-                        (d.Source == MessageSource(reference) && d.Code != WarningCode.DuplicateBinaryFile.Code())
+                        (d.Source.ValueOr(null) == MessageSource(reference)
+                         && d.Code != (int)WarningCode.DuplicateBinaryFile)
                         || DiagnosticTools.ErrorType(ErrorCode.ConflictInReferences)(d))
                     .Concat(diagnostics).ToImmutableArray();
                 this.Manager.PublishDiagnostics(this.CurrentLoadDiagnostics());
@@ -518,7 +520,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                 {
                     throw new ArgumentNullException(nameof(sourceFiles));
                 }
-                var diagnostics = new List<Diagnostic>();
+                var diagnostics = new List<QsCompilerDiagnostic>();
                 var loaded = LoadSourceFiles(sourceFiles, diagnostics.Add, this.Manager.LogException);
                 this.sourceFileDiagnostics = diagnostics.ToImmutableArray();
 
@@ -544,13 +546,13 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             /// </summary>
             private PublishDiagnosticParams CurrentLoadDiagnostics()
             {
-                Diagnostic[] diagnostics =
+                var diagnostics =
                     this.generalDiagnostics.Concat(
                     this.sourceFileDiagnostics).Concat(
                     this.projectReferenceDiagnostics).Concat(
                     this.referenceDiagnostics)
-                    .Select(d => d.Copy()).ToArray();
-
+                    .Select(diagnostic => diagnostic.ToLsp())
+                    .ToArray();
                 return new PublishDiagnosticParams
                 {
                     Uri = this.ProjectFile,
@@ -638,13 +640,15 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                         return;
                     }
 
-                    var diagnostics = new List<Diagnostic>();
+                    var diagnostics = new List<QsCompilerDiagnostic>();
                     var loaded = LoadSourceFiles(new string[] { sourceFile.LocalPath }, diagnostics.Add, this.Manager.LogException);
                     QsCompilerError.Verify(loaded.Count() <= 1);
 
                     this.loadedSourceFiles = this.loadedSourceFiles.Remove(sourceFile).Concat(loaded.Keys).ToImmutableHashSet();
                     this.sourceFileDiagnostics = this.sourceFileDiagnostics
-                        .RemoveAll(d => d.Source == MessageSource(sourceFile) && d.Code != WarningCode.DuplicateSourceFile.Code())
+                        .RemoveAll(d =>
+                            d.Source.ValueOr(null) == MessageSource(sourceFile)
+                            && d.Code != (int)WarningCode.DuplicateSourceFile)
                         .Concat(diagnostics).ToImmutableArray();
                     this.Manager.PublishDiagnostics(this.CurrentLoadDiagnostics());
 
@@ -1318,11 +1322,11 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         public static IEnumerable<Uri> FilterFiles(
             IEnumerable<string> files,
             WarningCode duplicateFileWarning,
-            Func<string, string, Diagnostic> fileNotFoundDiagnostic,
+            Func<string, string, QsCompilerDiagnostic> fileNotFoundDiagnostic,
             out IEnumerable<Uri> notFound,
             out IEnumerable<Uri> duplicates,
             out IEnumerable<(string, Exception)> invalidPaths,
-            Action<Diagnostic> onDiagnostic = null,
+            Action<QsCompilerDiagnostic> onDiagnostic = null,
             Action<Exception> onException = null)
         {
             if (files == null)
@@ -1378,7 +1382,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// </summary>
         public static ImmutableDictionary<Uri, string> LoadSourceFiles(
             IEnumerable<string> sourceFiles,
-            Action<Diagnostic> onDiagnostic = null,
+            Action<QsCompilerDiagnostic> onDiagnostic = null,
             Action<Exception> onException = null)
         {
             if (sourceFiles == null)
@@ -1399,7 +1403,8 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                 }
             }
 
-            static Diagnostic NotFoundDiagnostic(string notFound, string source) => Errors.LoadError(ErrorCode.UnknownSourceFile, new[] { notFound }, source);
+            static QsCompilerDiagnostic NotFoundDiagnostic(string notFound, string source) =>
+                Errors.LoadError(ErrorCode.UnknownSourceFile, new[] { notFound }, source);
             var found = FilterFiles(
                 sourceFiles,
                 WarningCode.DuplicateSourceFile,
@@ -1425,7 +1430,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         private static References.Headers LoadReferencedDll(
             Uri asm,
             bool ignoreDllResources,
-            Action<Diagnostic> onDiagnostic = null,
+            Action<QsCompilerDiagnostic> onDiagnostic = null,
             Action<Exception> onException = null)
         {
             if (asm == null)
@@ -1485,7 +1490,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         public static ImmutableDictionary<NonNullable<string>, References.Headers> LoadProjectReferences(
             IEnumerable<string> refProjectFiles,
             Func<Uri, Uri> getOutputPath,
-            Action<Diagnostic> onDiagnostic = null,
+            Action<QsCompilerDiagnostic> onDiagnostic = null,
             Action<Exception> onException = null)
         {
             if (refProjectFiles == null)
@@ -1499,7 +1504,8 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             References.Headers LoadReferencedDll(Uri asm) =>
                 ProjectManager.LoadReferencedDll(asm, false, onException: onException); // any exception here is really a failure of GetOutputPath and will be treated as an unexpected exception
 
-            static Diagnostic NotFoundDiagnostic(string notFound, string source) => Errors.LoadError(ErrorCode.UnknownProjectReference, new[] { notFound }, source);
+            static QsCompilerDiagnostic NotFoundDiagnostic(string notFound, string source) =>
+                Errors.LoadError(ErrorCode.UnknownProjectReference, new[] { notFound }, source);
             var existingProjectFiles = FilterFiles(
                 refProjectFiles,
                 WarningCode.DuplicateProjectReference,
@@ -1548,7 +1554,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// </summary>
         public static ImmutableDictionary<NonNullable<string>, References.Headers> LoadReferencedAssemblies(
             IEnumerable<string> references,
-            Action<Diagnostic> onDiagnostic = null,
+            Action<QsCompilerDiagnostic> onDiagnostic = null,
             Action<Exception> onException = null,
             bool ignoreDllResources = false)
         {
@@ -1560,7 +1566,8 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                 ProjectManager.LoadReferencedDll(asm, ignoreDllResources, onDiagnostic, onException);
 
             var relevant = references.Where(file => file.IndexOf("mscorlib.dll", StringComparison.InvariantCultureIgnoreCase) < 0);
-            static Diagnostic NotFoundDiagnostic(string notFound, string source) => Warnings.LoadWarning(WarningCode.UnknownBinaryFile, new[] { notFound }, source);
+            static QsCompilerDiagnostic NotFoundDiagnostic(string notFound, string source) =>
+                Warnings.LoadWarning(WarningCode.UnknownBinaryFile, new[] { notFound }, source);
             var assembliesToLoad = FilterFiles(
                 relevant,
                 WarningCode.DuplicateBinaryFile,

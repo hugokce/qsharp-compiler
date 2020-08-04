@@ -443,11 +443,13 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                     this.CurrentSyntaxDiagnostics()).Concat(
                     this.CurrentContextDiagnostics()).Concat(
                     this.CurrentHeaderDiagnostics()).Concat(
-                    this.CurrentSemanticDiagnostics()).ToArray();
+                    this.CurrentSemanticDiagnostics())
+                    .Select(diagnostic => diagnostic.ToLsp())
+                    .ToArray();
                 return new PublishDiagnosticParams
                 {
                     Uri = this.Uri,
-                    Diagnostics = diagnostics.Select(diagnostic => diagnostic.ToLsp()).ToArray()
+                    Diagnostics = diagnostics
                 };
             }
             finally

@@ -10,6 +10,7 @@ using Microsoft.Quantum.QsCompiler.Diagnostics;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using Lsp = Microsoft.VisualStudio.LanguageServer.Protocol;
 using Position = Microsoft.Quantum.QsCompiler.DataTypes.Position;
+using Range = Microsoft.Quantum.QsCompiler.DataTypes.Range;
 
 namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
 {
@@ -157,15 +158,12 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
 
         // warnings 70**
 
-        public static Diagnostic LoadWarning(WarningCode code, IEnumerable<string> args, string source) =>
-            new Diagnostic
-            {
-                Severity = DiagnosticSeverity.Warning,
-                Code = Code(code),
-                Source = source,
-                Message = DiagnosticItem.Message(code, args ?? Enumerable.Empty<string>()),
-                Range = null
-            };
+        public static QsCompilerDiagnostic LoadWarning(WarningCode code, IEnumerable<string> args, string source) =>
+            new QsCompilerDiagnostic(
+                DiagnosticItem.NewWarning(code),
+                args ?? Enumerable.Empty<string>(),
+                Range.Zero, // TODO: Consider using a nullable diagnostic range.
+                QsNullable<string>.NewValue(source));
 
         // warnings 20**
 
@@ -192,15 +190,12 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
 
         // errors 70**
 
-        public static Diagnostic LoadError(ErrorCode code, IEnumerable<string> args, string source) =>
-            new Diagnostic
-            {
-                Severity = DiagnosticSeverity.Error,
-                Code = Code(code),
-                Source = source,
-                Message = DiagnosticItem.Message(code, args ?? Enumerable.Empty<string>()),
-                Range = null
-            };
+        public static QsCompilerDiagnostic LoadError(ErrorCode code, IEnumerable<string> args, string source) =>
+            new QsCompilerDiagnostic(
+                DiagnosticItem.NewError(code),
+                args ?? Enumerable.Empty<string>(),
+                Range.Zero, // TODO: Consider using a nullable diagnostic range.
+                QsNullable<string>.NewValue(source));
 
         // errors 20**
 
