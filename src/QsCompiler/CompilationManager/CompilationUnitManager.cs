@@ -687,14 +687,14 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                     {
                         return;
                     }
-                    var allDiagnostics = diagnostics.ToLookup(msg => NonNullable<string>.New(msg.Source));
+                    var allDiagnostics = diagnostics.ToLookup(msg => msg.Source.ValueOr(null));
                     foreach (var file in this.fileContentManagers.Values)
                     {
                         if (changedFiles.Contains(file.FileName))
                         {
                             continue;
                         }
-                        file.ReplaceSemanticDiagnostics(allDiagnostics[file.FileName]);
+                        file.ReplaceSemanticDiagnostics(allDiagnostics[file.FileName.Value]);
                         this.PublishDiagnostics(file.Diagnostics());
                     }
 
@@ -742,7 +742,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                 // NOTE: invalidating the right diagnostics is kind of error prone,
                 // so instead of calling file.UpdateTypeChecking the type checking for the entire file is simply recomputed.
 
-                var diagnostics = new List<Diagnostic>();
+                var diagnostics = new List<QsCompilerDiagnostic>();
                 var contentToCompile = file.UpdateGlobalSymbols(this.compilationUnit, diagnostics);
                 file.ImportGlobalSymbols(this.compilationUnit, diagnostics);
                 TypeChecking.ResolveGlobalSymbols(this.compilationUnit.GlobalSymbols, diagnostics, file.FileName.Value);
@@ -955,49 +955,49 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             /// Contains a dictionary that maps the ID of a file included in the compilation
             /// to all scope-related diagnostics generated during compilation.
             /// </summary>
-            public readonly ImmutableDictionary<NonNullable<string>, ImmutableArray<Diagnostic>> ScopeDiagnostics;
+            public readonly ImmutableDictionary<NonNullable<string>, ImmutableArray<QsCompilerDiagnostic>> ScopeDiagnostics;
 
             /// <summary>
             /// Contains a dictionary that maps the ID of a file included in the compilation
             /// to all syntax-related diagnostics generated during compilation.
             /// </summary>
-            public readonly ImmutableDictionary<NonNullable<string>, ImmutableArray<Diagnostic>> SyntaxDiagnostics;
+            public readonly ImmutableDictionary<NonNullable<string>, ImmutableArray<QsCompilerDiagnostic>> SyntaxDiagnostics;
 
             /// <summary>
             /// Contains a dictionary that maps the ID of a file included in the compilation
             /// to all context-related diagnostics generated during compilation.
             /// </summary>
-            public readonly ImmutableDictionary<NonNullable<string>, ImmutableArray<Diagnostic>> ContextDiagnostics;
+            public readonly ImmutableDictionary<NonNullable<string>, ImmutableArray<QsCompilerDiagnostic>> ContextDiagnostics;
 
             /// <summary>
             /// Contains a dictionary that maps the ID of a file included in the compilation
             /// to all diagnostics generated during compilation related to header information for declarations.
             /// </summary>
-            public readonly ImmutableDictionary<NonNullable<string>, ImmutableArray<Diagnostic>> HeaderDiagnostics;
+            public readonly ImmutableDictionary<NonNullable<string>, ImmutableArray<QsCompilerDiagnostic>> HeaderDiagnostics;
 
             /// <summary>
             /// Contains a dictionary that maps the ID of a file included in the compilation
             /// to all semantic diagnostics generated during compilation for the specified implementations.
             /// </summary>
-            public readonly ImmutableDictionary<NonNullable<string>, ImmutableArray<Diagnostic>> SemanticDiagnostics;
+            public readonly ImmutableDictionary<NonNullable<string>, ImmutableArray<QsCompilerDiagnostic>> SemanticDiagnostics;
 
             /// <summary>
             /// Maps a file ID assigned by the Q# compiler to all diagnostics generated during compilation.
             /// Returns an empty sequence if no file with the given ID has been included in the compilation.
             /// </summary>
-            public IEnumerable<Diagnostic> Diagnostics(NonNullable<string> file) =>
+            public IEnumerable<QsCompilerDiagnostic> Diagnostics(NonNullable<string> file) =>
                 this.SourceFiles.Contains(file) ?
                     this.ScopeDiagnostics[file]
                         .Concat(this.SyntaxDiagnostics[file])
                         .Concat(this.ContextDiagnostics[file])
                         .Concat(this.HeaderDiagnostics[file])
                         .Concat(this.SemanticDiagnostics[file]) :
-                    Enumerable.Empty<Diagnostic>();
+                    Enumerable.Empty<QsCompilerDiagnostic>();
 
             /// <summary>
             /// Returns all diagnostics generated during compilation.
             /// </summary>
-            public IEnumerable<Diagnostic> Diagnostics() =>
+            public IEnumerable<QsCompilerDiagnostic> Diagnostics() =>
                 this.ScopeDiagnostics.Values
                     .Concat(this.SyntaxDiagnostics.Values)
                     .Concat(this.ContextDiagnostics.Values)
