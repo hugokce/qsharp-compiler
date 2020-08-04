@@ -225,40 +225,25 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
 
         // errors 10**
 
-        internal static Diagnostic ExcessBracketError(string filename, Position pos)
-        {
-            return new Diagnostic
-            {
-                Severity = DiagnosticSeverity.Error,
-                Code = ErrorCode.ExcessBracketError.Code(),
-                Source = filename,
-                Message = DiagnosticItem.Message(ErrorCode.ExcessBracketError, Enumerable.Empty<string>()),
-                Range = pos == null ? null : new Lsp.Range { Start = pos.ToLsp(), End = pos.ToLsp() }
-            };
-        }
+        internal static QsCompilerDiagnostic ExcessBracketError(string filename, Position pos) =>
+            new QsCompilerDiagnostic(
+                DiagnosticItem.NewError(ErrorCode.ExcessBracketError),
+                Enumerable.Empty<string>(),
+                Range.Create(pos, pos),
+                QsNullable<string>.NewValue(filename));
 
-        internal static Diagnostic MissingClosingBracketError(string filename, Position pos)
-        {
-            return new Diagnostic
-            {
-                Severity = DiagnosticSeverity.Error,
-                Code = ErrorCode.MissingBracketError.Code(),
-                Source = filename,
-                Message = DiagnosticItem.Message(ErrorCode.MissingBracketError, Enumerable.Empty<string>()),
-                Range = pos == null ? null : new Lsp.Range { Start = pos.ToLsp(), End = pos.ToLsp() }
-            };
-        }
+        internal static QsCompilerDiagnostic MissingClosingBracketError(string filename, Position pos) =>
+            new QsCompilerDiagnostic(
+                DiagnosticItem.NewError(ErrorCode.MissingBracketError),
+                Enumerable.Empty<string>(),
+                Range.Create(pos, pos),
+                QsNullable<string>.NewValue(filename));
 
-        internal static Diagnostic MissingStringDelimiterError(string filename, Position pos)
-        {
-            return new Diagnostic
-            {
-                Severity = DiagnosticSeverity.Error,
-                Code = ErrorCode.MissingStringDelimiterError.Code(),
-                Source = filename,
-                Message = DiagnosticItem.Message(ErrorCode.MissingStringDelimiterError, Enumerable.Empty<string>()),
-                Range = pos == null ? null : new Lsp.Range { Start = pos.ToLsp(), End = pos.ToLsp() }
-            };
-        }
+        internal static QsCompilerDiagnostic MissingStringDelimiterError(string filename, Position pos) =>
+            new QsCompilerDiagnostic(
+                DiagnosticItem.NewError(ErrorCode.MissingStringDelimiterError),
+                Enumerable.Empty<string>(),
+                Range.Create(pos, pos),
+                QsNullable<string>.NewValue(filename));
     }
 }

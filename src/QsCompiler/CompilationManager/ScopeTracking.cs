@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Quantum.QsCompiler.CompilationBuilder.DataStructures;
+using Microsoft.Quantum.QsCompiler.DataTypes;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using Lsp = Microsoft.VisualStudio.LanguageServer.Protocol;
 using Position = Microsoft.Quantum.QsCompiler.DataTypes.Position;
@@ -695,7 +696,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// Throws an ArgumentNullException if file is null.
         /// Throws an ArgumentException if the number of lines in the file is zero.
         /// </summary>
-        private static IEnumerable<Diagnostic> CheckForMissingClosings(this FileContentManager file)
+        private static IEnumerable<QsCompilerDiagnostic> CheckForMissingClosings(this FileContentManager file)
         {
             if (file == null)
             {
@@ -721,7 +722,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// Throws an ArgumentNullException if file is null.
         /// Throws an ArgumentOutOfRangeException if the range [start, start + count) is not within file.
         /// </summary>
-        private static IEnumerable<Diagnostic> ComputeScopeDiagnostics(this FileContentManager file, int start, int count)
+        private static IEnumerable<QsCompilerDiagnostic> ComputeScopeDiagnostics(this FileContentManager file, int start, int count)
         {
             if (file == null)
             {
@@ -742,7 +743,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// Throws an ArgumentNullException if file is null.
         /// Throws an ArgumentOutOfRangeException if start is not within file.
         /// </summary>
-        private static IEnumerable<Diagnostic> ComputeScopeDiagnostics(this FileContentManager file, int start)
+        private static IEnumerable<QsCompilerDiagnostic> ComputeScopeDiagnostics(this FileContentManager file, int start)
         {
             // will raise an exception if file is null
             return ComputeScopeDiagnostics(file, start, file == null ? 0 : file.NrLines() - start);
