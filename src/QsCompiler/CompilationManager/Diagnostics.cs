@@ -167,17 +167,12 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
 
         // warnings 20**
 
-        internal static Diagnostic EmptyStatementWarning(string filename, Position pos)
-        {
-            return new Diagnostic
-            {
-                Severity = DiagnosticSeverity.Warning,
-                Code = WarningCode.ExcessSemicolon.Code(),
-                Source = filename,
-                Message = DiagnosticItem.Message(WarningCode.ExcessSemicolon, Enumerable.Empty<string>()),
-                Range = pos == null ? null : new Lsp.Range { Start = pos.ToLsp(), End = pos.ToLsp() }
-            };
-        }
+        internal static QsCompilerDiagnostic EmptyStatementWarning(string filename, Position pos) =>
+            new QsCompilerDiagnostic(
+                DiagnosticItem.NewWarning(WarningCode.ExcessSemicolon),
+                Enumerable.Empty<string>(),
+                Range.Create(pos, pos),
+                QsNullable<string>.NewValue(filename));
     }
 
     public static class Errors
@@ -199,29 +194,19 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
 
         // errors 20**
 
-        internal static Diagnostic InvalidFragmentEnding(string filename, ErrorCode code, Position pos)
-        {
-            return new Diagnostic
-            {
-                Severity = DiagnosticSeverity.Error,
-                Code = Code(code),
-                Source = filename,
-                Message = DiagnosticItem.Message(code, Enumerable.Empty<string>()),
-                Range = pos == null ? null : new Lsp.Range { Start = pos.ToLsp(), End = pos.ToLsp() }
-            };
-        }
+        internal static QsCompilerDiagnostic InvalidFragmentEnding(string filename, ErrorCode code, Position pos) =>
+            new QsCompilerDiagnostic(
+                DiagnosticItem.NewError(code),
+                Enumerable.Empty<string>(),
+                Range.Create(pos, pos),
+                QsNullable<string>.NewValue(filename));
 
-        internal static Diagnostic MisplacedOpeningBracketError(string filename, Position pos)
-        {
-            return new Diagnostic
-            {
-                Severity = DiagnosticSeverity.Error,
-                Code = ErrorCode.MisplacedOpeningBracket.Code(),
-                Source = filename,
-                Message = DiagnosticItem.Message(ErrorCode.MisplacedOpeningBracket, Enumerable.Empty<string>()),
-                Range = pos == null ? null : new Lsp.Range { Start = pos.ToLsp(), End = pos.ToLsp() }
-            };
-        }
+        internal static QsCompilerDiagnostic MisplacedOpeningBracketError(string filename, Position pos) =>
+            new QsCompilerDiagnostic(
+                DiagnosticItem.NewError(ErrorCode.MisplacedOpeningBracket),
+                Enumerable.Empty<string>(),
+                Range.Create(pos, pos),
+                QsNullable<string>.NewValue(filename));
 
         // errors 10**
 

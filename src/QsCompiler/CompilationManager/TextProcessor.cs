@@ -5,8 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Quantum.QsCompiler.CompilationBuilder.DataStructures;
+using Microsoft.Quantum.QsCompiler.DataTypes;
 using Microsoft.Quantum.QsCompiler.TextProcessing;
-using Microsoft.VisualStudio.LanguageServer.Protocol;
 using Lsp = Microsoft.VisualStudio.LanguageServer.Protocol;
 using Position = Microsoft.Quantum.QsCompiler.DataTypes.Position;
 using Range = Microsoft.Quantum.QsCompiler.DataTypes.Range;
@@ -26,7 +26,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// adds an error to the returned diagnostics if it ends in and opening bracket.
         /// Throws an ArgumentNullException if the given diagnostics or fragments are null.
         /// </summary>
-        private static IEnumerable<Diagnostic> CheckForEmptyFragments(this IEnumerable<CodeFragment> fragments, string filename)
+        private static IEnumerable<QsCompilerDiagnostic> CheckForEmptyFragments(this IEnumerable<CodeFragment> fragments, string filename)
         {
             if (fragments == null)
             {
@@ -46,7 +46,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// Throws an ArgumentException if the code fragment kind of the given fragment is unspecified (i.e. null).
         /// Throws an ArgumentNullException if the diagnostics are null.
         /// </summary>
-        private static IEnumerable<Diagnostic> CheckFragmentDelimiters(this CodeFragment fragment, string filename)
+        private static IEnumerable<QsCompilerDiagnostic> CheckFragmentDelimiters(this CodeFragment fragment, string filename)
         {
             if (fragment?.Kind == null)
             {
@@ -66,14 +66,14 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// Adds a suitable error to the returned diagnostics for each fragment that cannot be processed.
         /// Raises an ArgumentNullException if the given diagnostics or fragments are null.
         /// </summary>
-        private static IEnumerable<Diagnostic> ParseCode(ref List<CodeFragment> fragments, string filename)
+        private static IEnumerable<QsCompilerDiagnostic> ParseCode(ref List<CodeFragment> fragments, string filename)
         {
             if (fragments == null)
             {
                 throw new ArgumentNullException(nameof(fragments));
             }
             var processedFragments = new List<CodeFragment>(fragments.Count());
-            var diagnostics = new List<Diagnostic>();
+            var diagnostics = new List<QsCompilerDiagnostic>();
 
             foreach (var snippet in fragments)
             {
@@ -94,13 +94,12 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                     var checkEnding = true; // if there is already a diagnostic overlapping with the ending, then don't bother checking the ending
                     foreach (var fragmentDiagnostic in output.Diagnostics)
                     {
-                        var generated = Diagnostics.Generate(filename, fragmentDiagnostic, fragmentRange.Start);
+                        var generated = fragmentDiagnostic.WithSourceFile(filename, fragmentRange.Start);
                         diagnostics.Add(generated);
 
                         var fragmentEnd = fragment.Range.End;
-                        var generatedRange = generated.Range.ToQSharp();
                         var diagnosticGoesUpToFragmentEnd =
-                            generatedRange.Contains(fragmentEnd) || fragmentEnd == generatedRange.End;
+                            generated.Range.Contains(fragmentEnd) || fragmentEnd == generated.Range.End;
                         if (fragmentDiagnostic.Diagnostic.IsError && diagnosticGoesUpToFragmentEnd)
                         {
                             checkEnding = false;
