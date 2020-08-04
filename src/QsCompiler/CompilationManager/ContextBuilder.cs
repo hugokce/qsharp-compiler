@@ -504,7 +504,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// Returns the line numbers for which the context diagnostics have been recomputed.
         /// Throws an ArgumentNullException if any of the arguments is null.
         /// </summary>
-        private static HashSet<int> VerifyContext(this FileContentManager file, SortedSet<int> changedLines, out List<Diagnostic> diagnostics)
+        private static HashSet<int> VerifyContext(this FileContentManager file, SortedSet<int> changedLines, out List<QsCompilerDiagnostic> diagnostics)
         {
             if (file == null)
             {
@@ -521,16 +521,16 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             var tokensToVerify = changedLines.SelectMany(TokenIndices);
             var verifiedLines = new HashSet<int>();
 
-            List<Diagnostic> Verify(CodeFragment.TokenIndex tokenIndex)
+            List<QsCompilerDiagnostic> Verify(CodeFragment.TokenIndex tokenIndex)
             {
-                var messages = new List<Diagnostic>();
+                var messages = new List<QsCompilerDiagnostic>();
                 var fragment = tokenIndex.GetFragment();
                 var context = tokenIndex.GetContext();
 
                 var (include, verifications) = Context.VerifySyntaxTokenContext(context);
                 foreach (var msg in verifications)
                 {
-                    messages.Add(Diagnostics.Generate(file.FileName.Value, msg, fragment.Range.Start));
+                    messages.Add(msg.WithSourceFile(file.FileName.Value, fragment.Range.Start));
                 }
 
                 if (include)
@@ -640,7 +640,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                 QsCompilerError.RaiseOnFailure(
                     () =>
                     {
-                        var verifiedLines = file.VerifyContext(changedLines, out List<Diagnostic> diagnostics);
+                        var verifiedLines = file.VerifyContext(changedLines, out var diagnostics);
                         file.UpdateContextDiagnostics(verifiedLines, diagnostics);
                     }, "updating the ContextDiagnostics failed");
 
