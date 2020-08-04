@@ -186,10 +186,15 @@ type Range = private Range of Position * Position with
 type QsCompilerDiagnostic =
     { Diagnostic : DiagnosticItem
       Arguments : IEnumerable<string>
-      Range : Range }
+      Range : Range
+      Source : QsNullable<string> }
 
-    /// builds a new diagnostics error with the give code and range
-    static member New (item, args) range = { Diagnostic = item; Arguments = args; Range = range }
+    /// builds a new diagnostics error with the give code and range but without a source file
+    static member New (item, args) range =
+        { Diagnostic = item
+          Arguments = args
+          Range = range
+          Source = Null }
 
     /// builds a new diagnostics error with the give code and range
     static member Error (code, args) range = QsCompilerDiagnostic.New (Error code, args) range

@@ -55,14 +55,26 @@ type QsInitializer with
 
 type QsCompilerDiagnostic with
 
-    /// Builds a diagnostic error for the given code and range, without any associated arguments.
-    static member internal NewError code range = { Diagnostic = Error code; Arguments = []; Range = range }
+    /// Builds a diagnostic error for the given code and range, without any associated arguments or a source file.
+    static member internal NewError code range =
+        { Diagnostic = Error code
+          Arguments = []
+          Range = range
+          Source = Null }
 
-    /// Builds a diagnostic warning for the given code and range, without any associated arguments.
-    static member internal NewWarning code range = { Diagnostic = Warning code; Arguments = []; Range = range }
+    /// Builds a diagnostic warning for the given code and range, without any associated arguments or a source file.
+    static member internal NewWarning code range =
+        { Diagnostic = Warning code
+          Arguments = []
+          Range = range
+          Source = Null }
 
-    /// Builds a diagnostic information for the given code and range, without any associated arguments.
-    static member internal NewInfo code range = { Diagnostic = Information code; Arguments = []; Range = range }
+    /// Builds a diagnostic information for the given code and range, without any associated arguments or a source file.
+    static member internal NewInfo code range =
+        { Diagnostic = Information code
+          Arguments = []
+          Range = range
+          Source = Null }
 
 
 type CallableSignature with

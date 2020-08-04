@@ -1617,7 +1617,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             if (!(context.ReturnType.Resolution.IsUnitType || context.ReturnType.Resolution.IsInvalidType) && !allPathsReturn)
             {
                 var errRange = Parsing.HeaderDelimiters(root.Fragment.Kind.IsControlledAdjointDeclaration ? 2 : 1).Invoke(root.Fragment.Text);
-                var missingReturn = new QsCompilerDiagnostic(DiagnosticItem.NewError(ErrorCode.MissingReturnOrFailStatement), Enumerable.Empty<string>(), errRange);
+                var missingReturn = QsCompilerDiagnostic.Error(ErrorCode.MissingReturnOrFailStatement, Enumerable.Empty<string>(), errRange);
                 diagnostics.Add(Diagnostics.Generate(sourceFile.Value, missingReturn, specPos));
             }
             return SpecializationImplementation.NewProvided(argTuple, implementation);
