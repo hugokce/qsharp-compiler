@@ -62,35 +62,19 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// <summary>
         /// Translates the line numbers in the diagnostic by the given offset.
         /// </summary>
-        /// <exception cref="ArgumentNullException">Thrown if <paramref name="diagnostic"/> is null.</exception>
-        /// <exception cref="ArgumentOutOfRangeException">
-        /// Thrown if the new diagnostic has negative line numbers.
-        /// </exception>
-        public static Diagnostic TranslateLines(this Diagnostic diagnostic, int offset)
-        {
-            if (diagnostic is null)
-            {
-                throw new ArgumentNullException(nameof(diagnostic));
-            }
-            var copy = diagnostic.Copy();
-            copy.Range.Start.Line += offset;
-            copy.Range.End.Line += offset;
-            if (copy.Range.Start.Line < 0 || copy.Range.End.Line < 0)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(offset), "Translated diagnostic has negative line numbers.");
-            }
-            return copy;
-        }
+        /// <exception cref="ArgumentException">Thrown if the new diagnostic range is invalid.</exception>
+        public static QsCompilerDiagnostic TranslateLines(this QsCompilerDiagnostic diagnostic, int offset) =>
+            new QsCompilerDiagnostic(
+                diagnostic.Diagnostic,
+                diagnostic.Arguments,
+                diagnostic.Range.TranslateLines(offset),
+                diagnostic.Source);
 
         /// <summary>
         /// Returns a function that returns true if the ErrorType of the given Diagnostic is one of the given types.
         /// </summary>
-        public static Func<Diagnostic, bool> ErrorType(params ErrorCode[] types)
-        {
-            var codes = types.Select(err => err.Code());
-            return m => m.IsError() && codes.Contains(m.Code);
-        }
+        public static Func<QsCompilerDiagnostic, bool> ErrorType(params ErrorCode[] codes) => diagnostic =>
+            diagnostic.Diagnostic is DiagnosticItem.Error error && codes.Contains(error.Item);
 
         /// <summary>
         /// Returns a function that returns true if the WarningType of the given Diagnostic is one of the given types.
@@ -104,8 +88,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// <summary>
         /// Returns true if the given diagnostics is an error.
         /// </summary>
-        public static bool IsError(this Diagnostic m) =>
-            m.Severity == DiagnosticSeverity.Error;
+        public static bool IsError(this QsCompilerDiagnostic m) => m.Diagnostic.IsError;
 
         /// <summary>
         /// Returns true if the given diagnostics is a warning.
@@ -165,49 +148,43 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// <summary>
         /// Returns true if the start line of the given diagnostic is larger or equal to lowerBound.
         /// </summary>
-        internal static bool SelectByStartLine(this Diagnostic m, int lowerBound)
-        {
-            return m?.Range?.Start?.Line == null ? false : lowerBound <= m.Range.Start.Line;
-        }
+        internal static bool SelectByStartLine(this QsCompilerDiagnostic m, int lowerBound) =>
+            lowerBound <= m.Range.Start.Line;
 
         /// <summary>
         /// Returns true if the start line of the given diagnostic is larger or equal to lowerBound, and smaller than upperBound.
         /// </summary>
-        internal static bool SelectByStartLine(this Diagnostic m, int lowerBound, int upperBound)
-        {
-            return m?.Range?.Start?.Line == null ? false : lowerBound <= m.Range.Start.Line && m.Range.Start.Line < upperBound;
-        }
+        internal static bool SelectByStartLine(this QsCompilerDiagnostic m, int lowerBound, int upperBound) =>
+            lowerBound <= m.Range.Start.Line && m.Range.Start.Line < upperBound;
 
         /// <summary>
         /// Returns true if the end line of the given diagnostic is larger or equal to lowerBound, and smaller than upperBound.
         /// </summary>
-        internal static bool SelectByEndLine(this Diagnostic m, int lowerBound, int upperBound)
-        {
-            return m?.Range?.End?.Line == null ? false : lowerBound <= m.Range.End.Line && m.Range.End.Line < upperBound;
-        }
+        internal static bool SelectByEndLine(this QsCompilerDiagnostic m, int lowerBound, int upperBound) =>
+            lowerBound <= m.Range.End.Line && m.Range.End.Line < upperBound;
 
         /// <summary>
         /// Returns true if the start position of the given diagnostic is larger or equal to lowerBound.
         /// </summary>
-        internal static bool SelectByStart(this Diagnostic m, Position lowerBound) =>
-            m?.Range?.Start?.Line != null && lowerBound <= m.Range.Start.ToQSharp();
+        internal static bool SelectByStart(this QsCompilerDiagnostic m, Position lowerBound) =>
+            lowerBound <= m.Range.Start;
 
         /// <summary>
         /// Returns true if the start position of the diagnostic is contained in the range.
         /// </summary>
-        internal static bool SelectByStart(this Diagnostic m, Range range) =>
-            !(m?.Range?.Start is null) && range.Contains(m.Range.Start.ToQSharp());
+        internal static bool SelectByStart(this QsCompilerDiagnostic m, Range range) =>
+            range.Contains(m.Range.Start);
 
         /// <summary>
         /// Returns true if the end position of the given diagnostic is larger or equal to lowerBound.
         /// </summary>
-        internal static bool SelectByEnd(this Diagnostic m, Position lowerBound) =>
-            m?.Range?.End?.Line != null && lowerBound <= m.Range.End.ToQSharp();
+        internal static bool SelectByEnd(this QsCompilerDiagnostic m, Position lowerBound) =>
+            lowerBound <= m.Range.End;
 
         /// <summary>
         /// Returns true if the end position of the diagnostic is contained in the range.
         /// </summary>
-        internal static bool SelectByEnd(this Diagnostic m, Range range) =>
-            !(m?.Range?.End is null) && range.Contains(m.Range.End.ToQSharp());
+        internal static bool SelectByEnd(this QsCompilerDiagnostic m, Range range) =>
+            range.Contains(m.Range.End);
     }
 }

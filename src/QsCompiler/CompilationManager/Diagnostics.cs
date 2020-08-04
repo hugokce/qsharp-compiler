@@ -98,6 +98,18 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             };
         }
 
+        /// <summary>
+        /// Converts the Q# compiler diagnostic into a language server protocol diagnostic.
+        /// </summary>
+        internal static Diagnostic ToLsp(this QsCompilerDiagnostic diagnostic) => new Diagnostic
+        {
+            Code = Code(diagnostic),
+            Message = diagnostic.Message,
+            Range = diagnostic.Range.ToLsp(),
+            Severity = Severity(diagnostic),
+            Source = diagnostic.Source.ValueOr(default)
+        };
+
         internal const string QsCodePrefix = "QS";
 
         public static bool TryGetCode(string str, out int code)

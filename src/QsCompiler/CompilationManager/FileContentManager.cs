@@ -56,21 +56,21 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
 
         // properties containing different kinds of diagnostics:
 
-        private readonly ManagedList<Diagnostic> scopeDiagnostics;
-        private readonly ManagedList<Diagnostic> syntaxDiagnostics;
-        private readonly ManagedList<Diagnostic> contextDiagnostics;
-        private readonly ManagedList<Diagnostic> semanticDiagnostics;
-        private readonly ManagedList<Diagnostic> headerDiagnostics;
+        private readonly ManagedList<QsCompilerDiagnostic> scopeDiagnostics;
+        private readonly ManagedList<QsCompilerDiagnostic> syntaxDiagnostics;
+        private readonly ManagedList<QsCompilerDiagnostic> contextDiagnostics;
+        private readonly ManagedList<QsCompilerDiagnostic> semanticDiagnostics;
+        private readonly ManagedList<QsCompilerDiagnostic> headerDiagnostics;
 
         /// <summary>
         /// used to store partially computed semantic diagnostics until they are ready for publishing
         /// </summary>
-        private readonly ManagedList<Diagnostic> updatedSemanticDiagnostics;
+        private readonly ManagedList<QsCompilerDiagnostic> updatedSemanticDiagnostics;
 
         /// <summary>
         /// used to store partially computed header diagnostics until they are ready for publishing
         /// </summary>
-        private readonly ManagedList<Diagnostic> updatedHeaderDiagnostics;
+        private readonly ManagedList<QsCompilerDiagnostic> updatedHeaderDiagnostics;
 
         // locks and other stuff used coordinate:
 
@@ -124,13 +124,13 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             this.editedTokens = new ManagedSortedSet(this.SyncRoot);
             this.editedCallables = new ManagedList<QsQualifiedName>(this.SyncRoot);
 
-            this.scopeDiagnostics = new ManagedList<Diagnostic>(this.SyncRoot);
-            this.syntaxDiagnostics = new ManagedList<Diagnostic>(this.SyncRoot);
-            this.contextDiagnostics = new ManagedList<Diagnostic>(this.SyncRoot);
-            this.semanticDiagnostics = new ManagedList<Diagnostic>(this.SyncRoot);
-            this.headerDiagnostics = new ManagedList<Diagnostic>(this.SyncRoot);
-            this.updatedSemanticDiagnostics = new ManagedList<Diagnostic>(this.SyncRoot);
-            this.updatedHeaderDiagnostics = new ManagedList<Diagnostic>(this.SyncRoot);
+            this.scopeDiagnostics = new ManagedList<QsCompilerDiagnostic>(this.SyncRoot);
+            this.syntaxDiagnostics = new ManagedList<QsCompilerDiagnostic>(this.SyncRoot);
+            this.contextDiagnostics = new ManagedList<QsCompilerDiagnostic>(this.SyncRoot);
+            this.semanticDiagnostics = new ManagedList<QsCompilerDiagnostic>(this.SyncRoot);
+            this.headerDiagnostics = new ManagedList<QsCompilerDiagnostic>(this.SyncRoot);
+            this.updatedSemanticDiagnostics = new ManagedList<QsCompilerDiagnostic>(this.SyncRoot);
+            this.updatedHeaderDiagnostics = new ManagedList<QsCompilerDiagnostic>(this.SyncRoot);
 
             // in order to improve the editor experience it is best to not publish new diagnostics on every keystroke
             // instead we will only queue changes under certain circumstances
@@ -157,32 +157,32 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// <summary>
         /// Returns a copy of the current scope diagnostics.
         /// </summary>
-        internal ImmutableArray<Diagnostic> CurrentScopeDiagnostics() =>
-            this.scopeDiagnostics.Get().Select(m => m.Copy()).ToImmutableArray();
+        internal ImmutableArray<QsCompilerDiagnostic> CurrentScopeDiagnostics() =>
+            this.scopeDiagnostics.Get().ToImmutableArray();
 
         /// <summary>
         /// Returns a copy of the current syntax diagnostics.
         /// </summary>
-        internal ImmutableArray<Diagnostic> CurrentSyntaxDiagnostics() =>
-            this.syntaxDiagnostics.Get().Select(m => m.Copy()).ToImmutableArray();
+        internal ImmutableArray<QsCompilerDiagnostic> CurrentSyntaxDiagnostics() =>
+            this.syntaxDiagnostics.Get().ToImmutableArray();
 
         /// <summary>
         /// Returns a copy of the current context diagnostics.
         /// </summary>
-        internal ImmutableArray<Diagnostic> CurrentContextDiagnostics() =>
-            this.contextDiagnostics.Get().Select(m => m.Copy()).ToImmutableArray();
+        internal ImmutableArray<QsCompilerDiagnostic> CurrentContextDiagnostics() =>
+            this.contextDiagnostics.Get().ToImmutableArray();
 
         /// <summary>
         /// Returns a copy of the current header diagnostics.
         /// </summary>
-        internal ImmutableArray<Diagnostic> CurrentHeaderDiagnostics() =>
-            this.headerDiagnostics.Get().Select(m => m.Copy()).ToImmutableArray();
+        internal ImmutableArray<QsCompilerDiagnostic> CurrentHeaderDiagnostics() =>
+            this.headerDiagnostics.Get().ToImmutableArray();
 
         /// <summary>
         /// Returns a copy of the current semantic diagnostics.
         /// </summary>
-        internal ImmutableArray<Diagnostic> CurrentSemanticDiagnostics() =>
-            this.semanticDiagnostics.Get().Select(m => m.Copy()).ToImmutableArray();
+        internal ImmutableArray<QsCompilerDiagnostic> CurrentSemanticDiagnostics() =>
+            this.semanticDiagnostics.Get().ToImmutableArray();
 
         /// <summary>
         /// Given the position where the syntax check starts and ends relative to the original file content before the update, and the lineNrChange,
@@ -190,13 +190,13 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// updates the line numbers of the remaining diagnostics if needed.
         /// Throws an ArgumentNullException if the given diagnostics to update or if the syntax check delimiters are null.
         /// </summary>
-        private static void InvalidateOrUpdateBySyntaxCheckDelimeters(ManagedList<Diagnostic> diagnostics, Range syntaxCheckDelimiters, int lineNrChange)
+        private static void InvalidateOrUpdateBySyntaxCheckDelimeters(ManagedList<QsCompilerDiagnostic> diagnostics, Range syntaxCheckDelimiters, int lineNrChange)
         {
             if (diagnostics == null)
             {
                 throw new ArgumentNullException(nameof(diagnostics));
             }
-            Diagnostic UpdateLineNrs(Diagnostic m) => m.SelectByStart(syntaxCheckDelimiters.End) ? m.TranslateLines(lineNrChange) : m;
+            QsCompilerDiagnostic UpdateLineNrs(QsCompilerDiagnostic m) => m.SelectByStart(syntaxCheckDelimiters.End) ? m.TranslateLines(lineNrChange) : m;
             diagnostics.SyncRoot.EnterWriteLock();
             try
             {
@@ -222,8 +222,8 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// Throws an ArgumentException if the given start and end position do not denote a valid range.
         /// </summary>
         private static void DelayInvalidateOrUpdate(
-            ManagedList<Diagnostic> diagnostics,
-            ManagedList<Diagnostic> updated,
+            ManagedList<QsCompilerDiagnostic> diagnostics,
+            ManagedList<QsCompilerDiagnostic> updated,
             Range syntaxCheckDelimiters,
             int lineNrChange)
         {
@@ -237,7 +237,8 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             }
 
             InvalidateOrUpdateBySyntaxCheckDelimeters(updated, syntaxCheckDelimiters, lineNrChange);
-            Diagnostic UpdateLineNrs(Diagnostic m) => m.SelectByStart(syntaxCheckDelimiters.End) ? m.TranslateLines(lineNrChange) : m;
+            QsCompilerDiagnostic UpdateLineNrs(QsCompilerDiagnostic m) =>
+                m.SelectByStart(syntaxCheckDelimiters.End) ? m.TranslateLines(lineNrChange) : m;
             if (lineNrChange != 0)
             {
                 diagnostics.Transform(UpdateLineNrs);
@@ -247,7 +248,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// <summary>
         /// Adds the given sequence of scope diagnostics to the current list.
         /// </summary>
-        internal void AddScopeDiagnostics(IEnumerable<Diagnostic> updates) =>
+        internal void AddScopeDiagnostics(IEnumerable<QsCompilerDiagnostic> updates) =>
             this.scopeDiagnostics.AddRange(updates);
 
         /// <summary>
@@ -275,7 +276,8 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             }
 
             var end = start + count;
-            Diagnostic UpdateLineNrs(Diagnostic m) => m.SelectByStartLine(end) ? m.TranslateLines(lineNrChange) : m;
+            QsCompilerDiagnostic UpdateLineNrs(QsCompilerDiagnostic m) =>
+                m.SelectByStartLine(end) ? m.TranslateLines(lineNrChange) : m;
 
             this.scopeDiagnostics.SyncRoot.EnterWriteLock();
             try
@@ -296,7 +298,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// <summary>
         /// Adds the given sequence of syntax diagnostics to the current list.
         /// </summary>
-        internal void AddSyntaxDiagnostics(IEnumerable<Diagnostic> updates) =>
+        internal void AddSyntaxDiagnostics(IEnumerable<QsCompilerDiagnostic> updates) =>
             this.syntaxDiagnostics.AddRange(updates);
 
         /// <summary>
@@ -316,7 +318,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// Throws an ArgumentNullException if the if the given sequence of line numbers for which the context diagnostics are obsolete is null.
         /// Throws an ArgumentOutOfRangeException if that sequence contains a value that is negative.
         /// </summary>
-        internal void UpdateContextDiagnostics(HashSet<int> obsolete, IEnumerable<Diagnostic> updates)
+        internal void UpdateContextDiagnostics(HashSet<int> obsolete, IEnumerable<QsCompilerDiagnostic> updates)
         {
             if (obsolete == null)
             {
@@ -363,7 +365,8 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             }
 
             var end = start + count;
-            Diagnostic UpdateLineNrs(Diagnostic m) => m.SelectByStartLine(end) ? m.TranslateLines(lineNrChange) : m;
+            QsCompilerDiagnostic UpdateLineNrs(QsCompilerDiagnostic m) =>
+                m.SelectByStartLine(end) ? m.TranslateLines(lineNrChange) : m;
 
             this.contextDiagnostics.SyncRoot.EnterWriteLock();
             try
@@ -383,7 +386,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// <summary>
         /// Replaces the header diagnostics with the given sequence and finalizes the header diagnostics update.
         /// </summary>
-        internal void ReplaceHeaderDiagnostics(IEnumerable<Diagnostic> updates)
+        internal void ReplaceHeaderDiagnostics(IEnumerable<QsCompilerDiagnostic> updates)
         {
             this.updatedHeaderDiagnostics.ReplaceAll(updates);
             this.headerDiagnostics.ReplaceAll(this.updatedHeaderDiagnostics);
@@ -402,7 +405,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// <summary>
         /// Replaces the semantic diagnostics with the given sequence and finalizes the semantic diagnostics update.
         /// </summary>
-        internal void ReplaceSemanticDiagnostics(IEnumerable<Diagnostic> updates)
+        internal void ReplaceSemanticDiagnostics(IEnumerable<QsCompilerDiagnostic> updates)
         {
             this.updatedSemanticDiagnostics.ReplaceAll(updates);
             this.semanticDiagnostics.ReplaceAll(this.updatedSemanticDiagnostics);
@@ -411,7 +414,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// <summary>
         /// Adds the given sequence of semantic diagnostics and finalizes the semantic diagnostics update.
         /// </summary>
-        internal void AddAndFinalizeSemanticDiagnostics(IEnumerable<Diagnostic> updates)
+        internal void AddAndFinalizeSemanticDiagnostics(IEnumerable<QsCompilerDiagnostic> updates)
         {
             this.updatedSemanticDiagnostics.AddRange(updates);
             this.semanticDiagnostics.ReplaceAll(this.updatedSemanticDiagnostics);
@@ -435,17 +438,16 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             this.SyncRoot.EnterReadLock();
             try
             {
-                Diagnostic[] diagnostics =
+                var diagnostics =
                     this.CurrentScopeDiagnostics().Concat(
                     this.CurrentSyntaxDiagnostics()).Concat(
                     this.CurrentContextDiagnostics()).Concat(
                     this.CurrentHeaderDiagnostics()).Concat(
                     this.CurrentSemanticDiagnostics()).ToArray();
-
                 return new PublishDiagnosticParams
                 {
                     Uri = this.Uri,
-                    Diagnostics = diagnostics
+                    Diagnostics = diagnostics.Select(diagnostic => diagnostic.ToLsp()).ToArray()
                 };
             }
             finally
