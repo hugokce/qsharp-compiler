@@ -503,9 +503,9 @@ namespace Microsoft.Quantum.QsCompiler
             this.CompilationOutput = this.VerifiedCompilation?.BuiltCompilation;
             compilationManager.Dispose();
 
-            foreach (var diag in this.VerifiedCompilation?.Diagnostics() ?? Enumerable.Empty<Diagnostic>())
+            foreach (var diag in this.VerifiedCompilation?.Diagnostics() ?? Enumerable.Empty<QsCompilerDiagnostic>())
             {
-                this.LogAndUpdate(ref this.compilationStatus.Validation, diag);
+                this.LogAndUpdate(ref this.compilationStatus.Validation, diag.ToLsp());
             }
 
             if (this.config.IsExecutable && this.CompilationOutput?.EntryPoints.Length == 0)
@@ -882,7 +882,8 @@ namespace Microsoft.Quantum.QsCompiler
 
             var status = Status.Succeeded;
             var messageSource = ProjectManager.MessageSource(rewriteStep.Origin);
-            Diagnostic Warning(WarningCode code, params string[] args) => Warnings.LoadWarning(code, args, messageSource);
+            Diagnostic Warning(WarningCode code, params string[] args) =>
+                Warnings.LoadWarning(code, args, messageSource).ToLsp();
             try
             {
                 transformed = compilation;
@@ -940,7 +941,8 @@ namespace Microsoft.Quantum.QsCompiler
                 this.LogAndUpdate(ref this.compilationStatus.SourceFileLoading, ErrorCode.SourceFilesMissing, Enumerable.Empty<string>());
             }
             void OnException(Exception ex) => this.LogAndUpdate(ref this.compilationStatus.SourceFileLoading, ex);
-            void OnDiagnostic(Diagnostic d) => this.LogAndUpdateLoadDiagnostics(ref this.compilationStatus.SourceFileLoading, d);
+            void OnDiagnostic(QsCompilerDiagnostic d) =>
+                this.LogAndUpdateLoadDiagnostics(ref this.compilationStatus.SourceFileLoading, d.ToLsp());
             var sourceFiles = ProjectManager.LoadSourceFiles(sources ?? Enumerable.Empty<string>(), OnDiagnostic, OnException);
             this.PrintResolvedFiles(sourceFiles.Keys);
             return sourceFiles;
@@ -962,7 +964,8 @@ namespace Microsoft.Quantum.QsCompiler
                 this.logger?.Log(WarningCode.ReferencesSetToNull, Enumerable.Empty<string>());
             }
             void OnException(Exception ex) => this.LogAndUpdate(ref this.compilationStatus.ReferenceLoading, ex);
-            void OnDiagnostic(Diagnostic d) => this.LogAndUpdateLoadDiagnostics(ref this.compilationStatus.ReferenceLoading, d);
+            void OnDiagnostic(QsCompilerDiagnostic d) =>
+                this.LogAndUpdateLoadDiagnostics(ref this.compilationStatus.ReferenceLoading, d.ToLsp());
             var headers = ProjectManager.LoadReferencedAssemblies(refs ?? Enumerable.Empty<string>(), OnDiagnostic, OnException, ignoreDllResources);
             var projId = this.config.ProjectName == null ? null : Path.ChangeExtension(Path.GetFullPath(this.config.ProjectNameWithExtension), "qsproj");
             var references = new References(headers, loadTestNames, (code, args) => OnDiagnostic(Errors.LoadError(code, args, projId)));
@@ -1104,7 +1107,7 @@ namespace Microsoft.Quantum.QsCompiler
                 foreach (var (dropped, _, _) in references.Where(r => !r.Item3))
                 {
                     var warning = Warnings.LoadWarning(WarningCode.ReferenceCannotBeIncludedInDll, new[] { dropped.Value }, null);
-                    this.LogAndUpdate(ref this.compilationStatus.DllGeneration, warning);
+                    this.LogAndUpdate(ref this.compilationStatus.DllGeneration, warning.ToLsp());
                 }
 
                 var compilation = CodeAnalysis.CSharp.CSharpCompilation.Create(

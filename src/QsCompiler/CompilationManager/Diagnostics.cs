@@ -118,7 +118,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// <summary>
         /// Converts the Q# compiler diagnostic into a language server protocol diagnostic.
         /// </summary>
-        internal static Diagnostic ToLsp(this QsCompilerDiagnostic diagnostic) => new Diagnostic
+        public static Diagnostic ToLsp(this QsCompilerDiagnostic diagnostic) => new Diagnostic
         {
             Code = Code(diagnostic),
             Message = diagnostic.Message,

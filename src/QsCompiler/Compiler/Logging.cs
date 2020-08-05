@@ -177,8 +177,20 @@ namespace Microsoft.Quantum.QsCompiler.Diagnostics
                 ++this.NrWarningsLogged;
             }
 
-            var msg = m.Range == null ? m : m.TranslateLines(this.lineNrOffset);
-            this.Output(msg);
+            var range = m.Range is null ? null : new LSP.Range
+            {
+                Start = new Position(m.Range.Start.Line + this.lineNrOffset, m.Range.Start.Character),
+                End = new Position(m.Range.End.Line + this.lineNrOffset, m.Range.End.Character)
+            };
+            this.Output(new Diagnostic
+            {
+                Code = m.Code,
+                Message = m.Message,
+                Range = range,
+                Severity = m.Severity,
+                Source = m.Source,
+                Tags = m.Tags
+            });
         }
 
         /// <summary>

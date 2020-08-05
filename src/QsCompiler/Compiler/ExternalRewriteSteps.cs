@@ -215,7 +215,7 @@ namespace Microsoft.Quantum.QsCompiler
                 }
                 catch (Exception ex)
                 {
-                    onDiagnostic?.Invoke(Errors.LoadError(ErrorCode.InvalidFilePath, new[] { file }, file));
+                    onDiagnostic?.Invoke(Errors.LoadError(ErrorCode.InvalidFilePath, new[] { file }, file).ToLsp());
                     onException?.Invoke(ex);
                     return null;
                 }
@@ -225,15 +225,17 @@ namespace Microsoft.Quantum.QsCompiler
             var (foundDlls, notFoundDlls) = specifiedPluginDlls.Partition(step => File.Exists(step.Item1.LocalPath));
             foreach (var file in notFoundDlls.Select(step => step.Item1).Distinct())
             {
-                onDiagnostic?.Invoke(Errors.LoadError(ErrorCode.UnknownCompilerPlugin, new[] { file.LocalPath }, file.LocalPath));
+                onDiagnostic?.Invoke(Errors.LoadError(ErrorCode.UnknownCompilerPlugin, new[] { file.LocalPath }, file.LocalPath).ToLsp());
             }
 
             var rewriteSteps = ImmutableArray.CreateBuilder<LoadedStep>();
             foreach (var (target, outputFolder) in foundDlls)
             {
                 var relevantTypes = new List<Type>();
-                Diagnostic LoadError(ErrorCode code, params string[] args) => Errors.LoadError(code, args, ProjectManager.MessageSource(target));
-                Diagnostic LoadWarning(WarningCode code, params string[] args) => Warnings.LoadWarning(code, args, ProjectManager.MessageSource(target));
+                Diagnostic LoadError(ErrorCode code, params string[] args) =>
+                    Errors.LoadError(code, args, ProjectManager.MessageSource(target)).ToLsp();
+                Diagnostic LoadWarning(WarningCode code, params string[] args) =>
+                    Warnings.LoadWarning(code, args, ProjectManager.MessageSource(target)).ToLsp();
                 try
                 {
                     var typesInAssembly = LoadAssembly(target.LocalPath).GetTypes();
