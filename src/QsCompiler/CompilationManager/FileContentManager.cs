@@ -282,7 +282,9 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
             this.scopeDiagnostics.SyncRoot.EnterWriteLock();
             try
             {
-                this.scopeDiagnostics.RemoveAll(DiagnosticTools.ErrorType(ErrorCode.MissingBracketError, ErrorCode.MissingStringDelimiterError));
+                this.scopeDiagnostics.RemoveAll(diagnostic =>
+                    diagnostic.Diagnostic == DiagnosticItem.NewError(ErrorCode.MissingBracketError) ||
+                    diagnostic.Diagnostic == DiagnosticItem.NewError(ErrorCode.MissingStringDelimiterError));
                 this.scopeDiagnostics.RemoveAll(m => m.SelectByStartLine(start, end) || m.SelectByEndLine(start, end));  // remove any Diagnostic overlapping with the updated interval
                 if (lineNrChange != 0)
                 {

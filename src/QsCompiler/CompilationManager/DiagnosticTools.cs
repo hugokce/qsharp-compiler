@@ -30,36 +30,6 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         }
 
         /// <summary>
-        /// Returns a new Diagnostic, making a deep copy of the given one (in particular a deep copy of it's Range)
-        /// or null if the given Diagnostic is null.
-        /// </summary>
-        public static Diagnostic Copy(this Diagnostic message)
-        {
-            Lsp.Position CopyPosition(Lsp.Position position) =>
-                position is null ? null : new Lsp.Position(position.Line, position.Character);
-
-            Lsp.Range CopyRange(Lsp.Range range) =>
-                range is null
-                    ? null
-                    : new Lsp.Range
-                    {
-                        Start = CopyPosition(range.Start),
-                        End = CopyPosition(range.End)
-                    };
-
-            return message is null
-                ? null
-                : new Diagnostic
-                {
-                    Range = CopyRange(message.Range),
-                    Severity = message.Severity,
-                    Code = message.Code,
-                    Source = message.Source,
-                    Message = message.Message
-                };
-        }
-
-        /// <summary>
         /// Translates the line numbers in the diagnostic by the given offset.
         /// </summary>
         /// <exception cref="ArgumentException">Thrown if the new diagnostic range is invalid.</exception>
@@ -73,8 +43,11 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// <summary>
         /// Returns a function that returns true if the ErrorType of the given Diagnostic is one of the given types.
         /// </summary>
-        public static Func<QsCompilerDiagnostic, bool> ErrorType(params ErrorCode[] codes) => diagnostic =>
-            diagnostic.Diagnostic is DiagnosticItem.Error error && codes.Contains(error.Item);
+        public static Func<Diagnostic, bool> ErrorType(params ErrorCode[] types)
+        {
+            var codes = types.Select(err => err.Code());
+            return m => m.IsError() && codes.Contains(m.Code);
+        }
 
         /// <summary>
         /// Returns a function that returns true if the WarningType of the given Diagnostic is one of the given types.
@@ -88,7 +61,8 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
         /// <summary>
         /// Returns true if the given diagnostics is an error.
         /// </summary>
-        public static bool IsError(this QsCompilerDiagnostic m) => m.Diagnostic.IsError;
+        public static bool IsError(this Diagnostic m) =>
+            m.Severity == DiagnosticSeverity.Error;
 
         /// <summary>
         /// Returns true if the given diagnostics is a warning.

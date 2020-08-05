@@ -381,6 +381,9 @@ type DiagnosticItem =
     | Warning of WarningCode
     | Information of InformationCode
 
+    /// Returns true if both diagnostic items are equal.
+    static member op_Equality (a : DiagnosticItem, b : DiagnosticItem) = a = b
+
     static member private ApplyArguments (args : IEnumerable<string>) str = 
         let args : obj[] = if args = null then [||] else [|for arg in args do yield arg|]
         try String.Format (str, args) 

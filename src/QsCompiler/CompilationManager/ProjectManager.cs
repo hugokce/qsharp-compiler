@@ -418,7 +418,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                 this.projectReferenceDiagnostics = this.projectReferenceDiagnostics.RemoveAll(d =>
                         (d.Source.ValueOr(null) == MessageSource(projectReference)
                          && d.Code != (int)WarningCode.DuplicateProjectReference)
-                        || DiagnosticTools.ErrorType(ErrorCode.ConflictInReferences)(d))
+                        || d.Diagnostic == DiagnosticItem.NewError(ErrorCode.ConflictInReferences))
                     .Concat(diagnostics).ToImmutableArray();
                 this.Manager.PublishDiagnostics(this.CurrentLoadDiagnostics());
                 this.Manager.UpdateReferencesAsync(importedDeclarations);
@@ -489,7 +489,7 @@ namespace Microsoft.Quantum.QsCompiler.CompilationBuilder
                 this.referenceDiagnostics = this.referenceDiagnostics.RemoveAll(d =>
                         (d.Source.ValueOr(null) == MessageSource(reference)
                          && d.Code != (int)WarningCode.DuplicateBinaryFile)
-                        || DiagnosticTools.ErrorType(ErrorCode.ConflictInReferences)(d))
+                        || d.Diagnostic == DiagnosticItem.NewError(ErrorCode.ConflictInReferences))
                     .Concat(diagnostics).ToImmutableArray();
                 this.Manager.PublishDiagnostics(this.CurrentLoadDiagnostics());
                 this.Manager.UpdateReferencesAsync(importedDeclarations);
